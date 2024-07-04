@@ -1,10 +1,12 @@
 import os
 import asyncio
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommandScopeAllPrivateChats
 from dotenv import find_dotenv, load_dotenv
 import logging
 import betterlogging as bl
 
+from cmd_list import private
 from routers.user_handler import user_private_router
 
 load_dotenv(find_dotenv())
@@ -38,6 +40,7 @@ async def main():
     setup_logging()
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
+    await bot.set_my_commands(commands=private, scope=BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot)
 
 
