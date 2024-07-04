@@ -52,7 +52,6 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 @user_private_router.message(StateFilter('*'), F.text == 'Сбросить настройки')
 async def fill_admin_state(message: types.Message, state: FSMContext):
     UserState.df = None
-    UserState.columns_list = None
     UserState.col_art = None
     UserState.col_to_show = []
     UserState.col_to_show_pool = []
@@ -121,19 +120,18 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 @user_private_router.message(UserState.set_articul, F.text)
 async def start_subj_choose(message: types.Message, state: FSMContext):
     articul = message.text
-    timestamp_columns = UserState.df.select_dtypes(include='datetime').columns
-    UserState.df[timestamp_columns[0]] = UserState.df[timestamp_columns[0]].dt.strftime('%d-%m-%Y')
+    #date_columns = [col for col in UserState.df.columns if 'Дата' in col or 'дата' in col]
     try:
         print('sds')
         print(UserState.df)
-        index = UserState.df[UserState.df['Реестровый номер'] == int(articul)].index[0]
-        index_articul = UserState.df.columns.get_loc('Реестровый номер')
+        index = UserState.df[UserState.df[UserState.col_art] == int(articul)].index[0]
+        index_articul = UserState.df.columns.get_loc(UserState.col_art)
         print(index_articul)
-        df = df.drop(columns='Реестровый номер')
-        row_data = df.loc[index]
+        new_df = UserState.df.drop(columns=UserState.col_art)
+        row_data = new_df.loc[index]
         arguments = list(row_data.values)
         for index, el in enumerate(arguments):
-            await message.answer(f'{df.columns[index]}: {el}')
+            await message.answer(f'{new_df.columns[index]}: {el}')
     except:
         await message.answer('По данному артикулу совпадений не найдено')
 
