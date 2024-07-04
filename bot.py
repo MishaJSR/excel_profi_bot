@@ -33,7 +33,7 @@ async def on_startup(bot):
 
 
 async def on_shutdown(bot):
-    print('Bot end')
+    print('Bot end')#
 
 
 async def main():
