@@ -129,17 +129,23 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
         df_filtered = UserState.df[UserState.df[UserState.col_art] == articul]
         UserState.df_filtered = df_filtered.iloc[:, col_to_show_pool]
         UserState.num_of_rows = df_filtered.shape[0]
-        for ind in range(UserState.num_of_rows):
-            text_to_show += f'{ind + 1}) '
-            for column in UserState.df_filtered.columns:
-                value = UserState.df_filtered[column].iloc[ind]
-                if isinstance(value, datetime.datetime):
-                    value = value.strftime('%d.%m.%Y')
-                text_to_show += f"*{column}*: {value}\n"
-            text_to_show += '\n'
-        await message.answer(text_to_show, parse_mode="Markdown")
-        await message.answer('Выберите необходимый артикул', reply_markup=art_ch(data=UserState.num_of_rows))
-        await state.set_state(UserState.set_articul_one)
+        if UserState.num_of_rows == 1:
+            await state.set_state(UserState.set_articul)
+            await one_exeption(message, state)
+        else:
+            for ind in range(UserState.num_of_rows):
+                text_to_show += f'{ind + 1}) '
+                for column in UserState.df_filtered.columns:
+                    value = UserState.df_filtered[column].iloc[ind]
+                    if isinstance(value, datetime.datetime):
+                        value = value.strftime('%d.%m.%Y')
+                    if isinstance(value, float):
+                        value = str(value)[:-2]
+                    text_to_show += f"*{column}*: {value}\n"
+                text_to_show += '\n'
+            await message.answer(text_to_show, parse_mode="Markdown")
+            await message.answer('Выберите необходимый артикул', reply_markup=art_ch(data=UserState.num_of_rows))
+            await state.set_state(UserState.set_articul_one)
     except:
         await message.answer('По данному артикулу совпадений не найдено')
 
@@ -147,17 +153,36 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 
 
 @user_private_router.message(UserState.set_articul_one, F.text)
-async def start_subj_choose(message: types.Message):
+async def start_subj_choose(message: types.Message, state: FSMContext):
     text_to_show = ''
     if not message.text.isdigit():
         await message.answer('Ошибка ввода')
+        await state.set_state(UserState.set_articul)
+        await message.answer('Введите правильный артикул')
+        return
     position = int(message.text) - 1
     one_series = UserState.df_filtered.iloc[position]
     for key, value in one_series.items():
         if isinstance(value, datetime.datetime):
             value = value.strftime('%d.%m.%Y')
+        if isinstance(value, float):
+            value = str(value)[:-2]
         text_to_show += f"*{key}*: {value}\n"
     await message.answer(text_to_show, parse_mode="Markdown")
+
+
+async def one_exeption(message, state):
+    text_to_show = ''
+    position = 0
+    one_series = UserState.df_filtered.iloc[position]
+    for key, value in one_series.items():
+        if isinstance(value, datetime.datetime):
+            value = value.strftime('%d.%m.%Y')
+        if isinstance(value, float):
+            value = str(value)[:-2]
+        text_to_show += f"*{key}*: {value}\n"
+    await message.answer(text_to_show, parse_mode="Markdown")
+    await message.answer('Можете вводить следующий артикул')
 
 
 
