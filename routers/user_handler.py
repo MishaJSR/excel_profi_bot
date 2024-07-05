@@ -120,21 +120,16 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 @user_private_router.message(UserState.set_articul, F.text)
 async def start_subj_choose(message: types.Message, state: FSMContext):
     articul = message.text
+    text_to_show = ''
     if message.text.isdigit():
         articul = int(articul)
     try:
         col_to_show_pool = [UserState.columns_list.index(el) for el in UserState.col_to_show]
-
         df_filtered = UserState.df[UserState.df[UserState.col_art] == articul]
         df_filtered = df_filtered.iloc[:, col_to_show_pool]
-        list_col_to_index = df_filtered.columns.tolist()
-        list_col_to_index = [x.strip() for x in list_col_to_index]
-        arguments = list(df_filtered.values)
-        text_to_answer = ''
-        for name, el in zip(list_col_to_index, arguments):
-            print(name)
-            print(el)
-            #await message.answer(f'{df_filtered.columns[index]}: {el}\n')
+        for column in df_filtered.columns:
+            text_to_show += f"*{column}*: {df_filtered[column].iloc[0]}\n"
+        await message.answer(text_to_show, parse_mode="Markdown")
     except Exception as e:
 
         print(e)
