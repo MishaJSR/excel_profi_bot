@@ -3,12 +3,13 @@ from aiogram import types, Router, F
 from aiogram.filters import CommandStart, StateFilter
 from dotenv import find_dotenv, load_dotenv
 import logging
+import datetime
 import pandas as pd
 import os
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
-from keyboards.user_keyboard import start_kb, col_articul, col_show, correct, back_kb
+from keyboards.user_keyboard import start_kb, col_articul, col_show, correct, back_kb, art_ch
 
 load_dotenv(find_dotenv())
 
@@ -23,12 +24,17 @@ class UserState(StatesGroup):
     col_show = State()
     success_show = State()
     set_articul = State()
+    ready_set_articul = State()
+    set_to_articul = State()
+    set_articul_one = State()
     df = None
     columns_list = None
     col_art = None
     col_to_show = []
     col_to_show_pool = []
     pool_str = None
+    df_filtered = None
+    num_of_rows = None
 
 
 @user_private_router.message(CommandStart())
@@ -46,18 +52,14 @@ async def start_cmd(message: types.Message):
 
 @user_private_router.message(StateFilter('*'), F.text == 'Вернуться')
 async def fill_admin_state(message: types.Message, state: FSMContext):
-    await message.answer('Главное меню', reply_markup=start_kb())
-    await state.set_state(UserState.start_user)
+    current_state = await state.get_state()
+    if current_state == UserState.set_articul_one:
+        await state.set_state(UserState.set_articul)
+        await message.answer('Вводите артикул', reply_markup=back_kb())
+    else:
+        await message.answer('Главное меню', reply_markup=start_kb())
+        await state.set_state(UserState.start_user)
 
-@user_private_router.message(StateFilter('*'), F.text == 'Сбросить настройки')
-async def fill_admin_state(message: types.Message, state: FSMContext):
-    UserState.df = None
-    UserState.col_art = None
-    UserState.col_to_show = []
-    UserState.col_to_show_pool = []
-    UserState.pool_str = None
-    await message.answer('Настройки сброшены', reply_markup=start_kb())
-    await state.set_state(UserState.start_user)
 
 
 
@@ -70,14 +72,11 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 async def start_subj_choose(message: types.Message, state: FSMContext):
     UserState.col_art = message.text
     await message.answer(f'Выберана колона артикула: {message.text}', reply_markup=start_kb())
-    await state.set_state(UserState.start_user)
+    await state.set_state(UserState.set_to_articul)
 
 
 
-
-
-
-@user_private_router.message(StateFilter('*'), F.text == 'Выбрать отображаемые колонны')
+@user_private_router.message(UserState.set_to_articul)
 async def fill_admin_state(message: types.Message, state: FSMContext):
     UserState.col_to_show = []
     UserState.pool_str = []
@@ -108,17 +107,19 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
         return
     await message.answer(f'*Поле артикула*:  {UserState.col_art}\n\n*Выбранные поля*{UserState.pool_str[14:]}', parse_mode="Markdown")
     await message.answer('Все верно?', reply_markup=correct())
+    await state.set_state(UserState.ready_set_articul)
 
 
-@user_private_router.message(StateFilter('*'), F.text == 'Перейти далее')
+@user_private_router.message(UserState.ready_set_articul)
 async def fill_admin_state(message: types.Message, state: FSMContext):
-    await message.answer('Вводите артикулы', reply_markup=back_kb())
+    await message.answer('Вводите артикул', reply_markup=back_kb())
     await state.set_state(UserState.set_articul)
 
 
-
 @user_private_router.message(UserState.set_articul, F.text)
-async def start_subj_choose(message: types.Message, state: FSMContext):
+async def fill_admin_state(message: types.Message, state: FSMContext):
+    UserState.num_of_rows = None
+    UserState.df_filtered = None
     articul = message.text
     text_to_show = ''
     if message.text.isdigit():
@@ -126,14 +127,37 @@ async def start_subj_choose(message: types.Message, state: FSMContext):
     try:
         col_to_show_pool = [UserState.columns_list.index(el) for el in UserState.col_to_show]
         df_filtered = UserState.df[UserState.df[UserState.col_art] == articul]
-        df_filtered = df_filtered.iloc[:, col_to_show_pool]
-        for column in df_filtered.columns:
-            text_to_show += f"*{column}*: {df_filtered[column].iloc[0]}\n"
+        UserState.df_filtered = df_filtered.iloc[:, col_to_show_pool]
+        UserState.num_of_rows = df_filtered.shape[0]
+        for ind in range(UserState.num_of_rows):
+            text_to_show += f'{ind + 1}) '
+            for column in UserState.df_filtered.columns:
+                value = UserState.df_filtered[column].iloc[ind]
+                if isinstance(value, datetime.datetime):
+                    value = value.strftime('%d.%m.%Y')
+                text_to_show += f"*{column}*: {value}\n"
+            text_to_show += '\n'
         await message.answer(text_to_show, parse_mode="Markdown")
-    except Exception as e:
-
-        print(e)
+        await message.answer('Выберите необходимый артикул', reply_markup=art_ch(data=UserState.num_of_rows))
+        await state.set_state(UserState.set_articul_one)
+    except:
         await message.answer('По данному артикулу совпадений не найдено')
+
+
+
+
+@user_private_router.message(UserState.set_articul_one, F.text)
+async def start_subj_choose(message: types.Message):
+    text_to_show = ''
+    if not message.text.isdigit():
+        await message.answer('Ошибка ввода')
+    position = int(message.text) - 1
+    one_series = UserState.df_filtered.iloc[position]
+    for key, value in one_series.items():
+        if isinstance(value, datetime.datetime):
+            value = value.strftime('%d.%m.%Y')
+        text_to_show += f"*{key}*: {value}\n"
+    await message.answer(text_to_show, parse_mode="Markdown")
 
 
 

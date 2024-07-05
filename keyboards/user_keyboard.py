@@ -1,7 +1,7 @@
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-start_but = ['Вписать артикул', 'Указать колонну артикула', 'Выбрать отображаемые колонны', 'Сбросить настройки']
+start_but = ['Вписать артикул', 'Указать колонну артикула', 'Выбрать отображаемые колонны',]
 
 
 def start_kb(data=None):
@@ -38,5 +38,20 @@ def correct(data=None):
 def back_kb(data=None):
     test_kb = ReplyKeyboardBuilder()
     test_kb.button(text='Вернуться')
+    test_kb.adjust(1, 1)
+    return test_kb.as_markup(resize_keyboard=True)
+
+def back_kb(data=None):
+    test_kb = ReplyKeyboardBuilder()
+    test_kb.button(text='Вернуться')
+    test_kb.adjust(1, 1)
+    return test_kb.as_markup(resize_keyboard=True)
+
+
+def art_ch(data=None):
+    test_kb = ReplyKeyboardBuilder()
+    test_kb.button(text='Вернуться')
+    for el in range(data):
+        test_kb.button(text=f'{el+1}')
     test_kb.adjust(1, 1)
     return test_kb.as_markup(resize_keyboard=True)
