@@ -8,6 +8,7 @@ import pandas as pd
 import os
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+import re
 
 from keyboards.user_keyboard import start_kb, col_articul, col_show, correct, back_kb, art_ch
 
@@ -125,6 +126,18 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
     if message.text.isdigit():
         articul = int(articul)
     try:
+        type_col = UserState.df.dtypes[UserState.col_art]
+        if type_col.name == 'float64':
+            articul = float(articul)
+        pattern = r'\d{2}.\d{2}.\d{4}'
+        if re.match(pattern, str(articul)):
+            print(f'Text "{articul}" соответствует формату даты "dd.mm.yyyy"')
+            year = int(articul[6:])
+            month = int(articul[3:5])
+            day = int(articul[:2])
+            print(year, month, day)
+            articul = datetime.datetime(year=year, month=month, day=day)
+
         col_to_show_pool = [UserState.columns_list.index(el) for el in UserState.col_to_show]
         df_filtered = UserState.df[UserState.df[UserState.col_art] == articul]
         UserState.df_filtered = df_filtered.iloc[:, col_to_show_pool]
