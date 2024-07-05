@@ -81,7 +81,7 @@ async def start_subj_choose(message: types.Message, state: FSMContext):
 async def fill_admin_state(message: types.Message, state: FSMContext):
     UserState.col_to_show = []
     UserState.pool_str = []
-    UserState.col_to_show_pool = UserState.columns_list
+    UserState.col_to_show_pool = UserState.columns_list.copy()
     await message.answer('Выберите отображаемые колонны', reply_markup=col_show(data=UserState.col_to_show_pool))
     await state.set_state(UserState.col_show)
 
@@ -120,49 +120,28 @@ async def fill_admin_state(message: types.Message, state: FSMContext):
 @user_private_router.message(UserState.set_articul, F.text)
 async def start_subj_choose(message: types.Message, state: FSMContext):
     articul = message.text
-    #date_columns = [col for col in UserState.df.columns if 'Дата' in col or 'дата' in col]
+    if message.text.isdigit():
+        articul = int(articul)
     try:
-        print('sds')
-        print(UserState.df)
-        index = UserState.df[UserState.df[UserState.col_art] == int(articul)].index[0]
-        index_articul = UserState.df.columns.get_loc(UserState.col_art)
-        print(index_articul)
-        new_df = UserState.df.drop(columns=UserState.col_art)
-        row_data = new_df.loc[index]
-        arguments = list(row_data.values)
-        for index, el in enumerate(arguments):
-            await message.answer(f'{new_df.columns[index]}: {el}')
-    except:
+        col_to_show_pool = [UserState.columns_list.index(el) for el in UserState.col_to_show]
+
+        df_filtered = UserState.df[UserState.df[UserState.col_art] == articul]
+        df_filtered = df_filtered.iloc[:, col_to_show_pool]
+        list_col_to_index = df_filtered.columns.tolist()
+        list_col_to_index = [x.strip() for x in list_col_to_index]
+        arguments = list(df_filtered.values)
+        text_to_answer = ''
+        for name, el in zip(list_col_to_index, arguments):
+            print(name)
+            print(el)
+            #await message.answer(f'{df_filtered.columns[index]}: {el}\n')
+    except Exception as e:
+
+        print(e)
         await message.answer('По данному артикулу совпадений не найдено')
 
 
 
-
-# @user_private_router.message(StateFilter('*'))
-# async def start_cmd(message: types.Message):
-#     current_dir = os.getcwd()
-#     files = os.listdir(current_dir + folder_path)
-#     df = await check_table(message, current_dir + folder_path + files[0])
-#     if df.empty:
-#         return
-#     articul = message.text
-#     timestamp_columns = df.select_dtypes(include='datetime').columns
-#     df[timestamp_columns[0]] = df[timestamp_columns[0]].dt.strftime('%d-%m-%Y')
-#     try:
-#         print('sds')
-#         print(df)
-#         index = df[df['Реестровый номер'] == int(articul)].index[0]
-#         index_articul = df.columns.get_loc('Реестровый номер')
-#         print(index_articul)
-#         df = df.drop(columns='Реестровый номер')
-#         row_data = df.loc[index]
-#         arguments = list(row_data.values)
-#         for index, el in enumerate(arguments):
-#             await message.answer(f'{df.columns[index]}: {el}')
-#     except:
-#         await message.answer('По данному артикулу совпадений не найдено')
-#
-#
 #
 #
 #
